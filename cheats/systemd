@@ -61,3 +61,23 @@ Task	                                      Command
 List all active timers	                    -  systemctl list-timers
 Start a timer manually	                    -  sudo systemctl start <timer-name>
 Stop a timer	                              -  sudo systemctl stop <timer-name>
+
+
+#system file example
+
+[Unit]
+Description=My Python Script Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/bin/myscript.py
+Restart=always
+User=myuser
+Group=mygroup
+WorkingDirectory=/usr/local/bin
+Environment="MY_ENV_VAR=value"
+
+[Install]
+WantedBy=multi-user.target
+
