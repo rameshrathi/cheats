@@ -35,7 +35,7 @@ case "$1" in
             # Build the image if it doesn't exist
             if ! docker images --format '{{.Repository}}' | grep -q "^$IMAGE_NAME$"; then
                 echo "📦 Building the Docker image..."
-                docker build -t $IMAGE_NAME -f DockerfileMultiDev .
+                docker build -t $IMAGE_NAME -f docker-arm-dev .
             fi
 
             # Run the new container
