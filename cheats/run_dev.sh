@@ -9,7 +9,7 @@ SHARED_DIR="$HOME/Documents/linux"
 case "$1" in
     build)
         echo "📦 Building the Docker image..."
-        docker build -t $IMAGE_NAME -f DockerfileMultiDev .
+        docker build -t $IMAGE_NAME -f docker-arm-dev .
         ;;
 
     run)
