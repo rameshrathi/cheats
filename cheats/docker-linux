@@ -21,19 +21,41 @@ RUN apt update && apt install -y \
     vim \
     screen \
     sudo \
+    curl \
+    unzip \
+    software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uf2conv.py for UF2 file generation
-RUN pip install uf2conv
+
+# Install uf2conv.py manually
+RUN git clone https://github.com/microsoft/uf2.git /opt/uf2 && \
+    ln -s /opt/uf2/utils/uf2conv.py /usr/local/bin/uf2conv && \
+    chmod +x /usr/local/bin/uf2conv
 
 # Set root password to 'root'
 RUN echo "root:root" | chpasswd
 
-# Set the default working directory to /home/root
+# Create a non-root user for code-server
+RUN useradd -m -s /bin/bash coder && \
+    echo "coder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Install code-server
+USER coder
+WORKDIR /home/coder
+RUN curl -fsSL https://code-server.dev/install.sh | sh
+
+# Configure code-server
+RUN mkdir -p ~/.config/code-server && echo "bind-addr: 0.0.0.0:8080" > ~/.config/code-server/config.yaml && \
+    echo "auth: password" >> ~/.config/code-server/config.yaml && \
+    echo "password: coder" >> ~/.config/code-server/config.yaml && \
+    echo "cert: false" >> ~/.config/code-server/config.yaml
+
+# Switch back to root user
+USER root
 WORKDIR /home/root
 
-# Expose ports for debugging (if needed)
-EXPOSE 3333 4444 22
+# Expose ports for debugging & code-server
+EXPOSE 3333 4444 22 8080
 
 # Default shell
-CMD ["/bin/bash"]
+CMD ["code-server", "--bind-addr", "0.0.0.0:8080", "--auth=none", "--disable-telemetry"]
