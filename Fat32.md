@@ -148,10 +148,7 @@ FAT32’s design is characterized by its simplicity and compatibility, using a l
 - [Design of the FAT file system - Wikipedia](https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system)
 
 ------------------------------------------------------------------------------------------------------------------------------------------
-------------------------------------------------------------------------------------------------------------------------------------------
-------------------------------------------------------------------------------------------------------------------------------------------
-
-# FAT32 File System Explained
+# FAT32 File System Design
 
 FAT32 (File Allocation Table 32-bit) is a relatively simple and long-established file system, evolving from FAT12 and FAT16. Its design prioritizes compatibility and simplicity, leading to wide support across operating systems and devices, especially removable media like older USB drives and SD cards.
 
