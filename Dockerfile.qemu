@@ -36,3 +36,7 @@ USER $USERNAME
 
 # Set the default command to open a bash shell when the container starts
 CMD ["/bin/bash"]
+
+# Build : docker build -t arm-dev-env -f Dockerfile.qemu .
+# Run : docker run -it --rm -v ./examples:/home/devuser/projects --name arm-builder arm-dev-env
+
