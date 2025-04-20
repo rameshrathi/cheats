@@ -1,0 +1,63 @@
+# Use Ubuntu 22.04 LTS version as the base image
+FROM ubuntu:22.04
+
+# Set environment variables to prevent interactive prompts during installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update package lists and install essential development tools and SSH server
+# openssh-server to allow SSH connections
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    cmake \
+    python3 \
+    python3-pip \
+    sudo \
+    curl \
+    wget \
+    vim \
+    gcc-arm-linux-gnueabihf \
+    g++-arm-linux-gnueabihf \
+    openssh-server \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user for development
+ARG USERNAME=ricki
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+RUN groupadd --gid $USER_GID $USERNAME && \
+    useradd --uid $USER_UID --gid $USER_GID --create-home --shell /bin/bash $USERNAME && \
+    # Add the user to the sudo group to allow administrative tasks
+    adduser $USERNAME sudo && \
+    # Give the user passwordless sudo access (use with caution)
+    echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME && \
+    chmod 0440 /etc/sudoers.d/$USERNAME
+
+# Set the password for the user
+# Consider using build arguments or secrets management for sensitive data.
+RUN echo "$USERNAME:ricki123" | chpasswd
+
+# Configure SSH server
+# Allow password authentication
+# Create the necessary directory for sshd
+RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config && \
+    mkdir -p /var/run/sshd
+
+# Expose the default SSH port
+EXPOSE 22
+
+# Set the working directory for the new user
+WORKDIR /home/$USERNAME/workspace
+
+# Start the SSH server in the foreground when the container starts
+# The -D option prevents sshd from daemonizing (running in the background)
+# The -e option logs to stderr, which is useful for Docker logs
+CMD ["/usr/sbin/sshd", "-D", "-e"]
+
+# Build : docker build -t linux-dev-ssh -f Dockerfile.ubuntu .
+# Run in bg with ssh : docker run -d -p 2222:22 --name dev-container linux-dev-ssh
+# Run with bash : docker run -it --rm --name dev-container-interactive linux-dev-ssh /bin/bash

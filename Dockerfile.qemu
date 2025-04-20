@@ -1,0 +1,38 @@
+# Use Ubuntu 22.04 LTS as the base image
+FROM ubuntu:22.04
+
+# Set environment variables to prevent interactive prompts during installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    vim \
+    gcc-arm-none-eabi \
+    binutils-arm-none-eabi \
+    gdb-arm-none-eabi \
+    qemu-system-arm \
+    make \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user for development
+ARG USERNAME=devuser
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+RUN groupadd --gid $USER_GID $USERNAME && \
+    useradd --uid $USER_UID --gid $USER_GID --create-home --shell /bin/bash $USERNAME && \
+    # (Optional) Add user to sudo group if needed, though less critical for build environments
+    mkdir /home/$USERNAME/projects && \
+    chown $USERNAME:$USERNAME /home/$USERNAME/projects
+
+# Set the working directory
+WORKDIR /home/$USERNAME/projects
+
+# Switch to the non-root user
+USER $USERNAME
+
+# Set the default command to open a bash shell when the container starts
+CMD ["/bin/bash"]
