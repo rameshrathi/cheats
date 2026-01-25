@@ -51,7 +51,7 @@ RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/
 EXPOSE 22
 
 # Set the working directory for the new user
-WORKDIR /home/$USERNAME/workspace
+WORKDIR /home/$USERNAME
 
 # Start the SSH server in the foreground when the container starts
 # The -D option prevents sshd from daemonizing (running in the background)
@@ -60,4 +60,5 @@ CMD ["/usr/sbin/sshd", "-D", "-e"]
 
 # Build : docker build -t linux-dev-ssh -f Dockerfile.ubuntu .
 # Run in bg with ssh : docker run -d -p 2222:22 --name dev-container linux-dev-ssh
-# Run with bash : docker run -it --rm --name dev-container-interactive linux-dev-ssh /bin/bash
+# Run with bash : docker run -it --name dev-container-interactive linux-dev-ssh /bin/bash
+# Run next time : docker start -ai dev-container-interactive
