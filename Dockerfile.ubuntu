@@ -1,32 +1,59 @@
-# Use an official Ubuntu as a parent image
-FROM ubuntu:latest
+# Use the official Ubuntu image
+FROM ubuntu:22.04
 
-# Set non-interactive mode for apt
+# Set environment variables to prevent interactive prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies
-RUN apt-get update \
-    && apt-get install -y \
-        build-essential \
-        git \
-        cmake \
-        python3 \
-        gcc-arm-linux-gnueabihf \
-        openssh-server \
-        curl \
-        wget \
-        gnupg2 \
+# Update package lists and install essential development tools and SSH server
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    cmake \
+    python3 \
+    python3-pip \
+    sudo \
+    curl \
+    wget \
+    vim \
+    gcc-arm-linux-gnueabihf \
+    g++-arm-linux-gnueabihf \
+    openssh-server \
+    net-tools \
+    ca-certificates \
+    gnupg2 \
+    lsb-release \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up VS Code Server with SSH
-RUN mkdir -p /var/run/sshd \
-    && echo 'root:password' | chpasswd \
-    && sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config \
-    && sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+# Create SSH directories
+RUN mkdir -p /var/run/sshd
 
-# Expose the port for SSH
+# Configure SSH for VS Code Remote SSH
+RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#X11Forwarding yes/X11Forwarding yes/' /etc/ssh/sshd_config
+
+# Create a development user for VS Code
+RUN useradd -m -s /bin/bash -G sudo devuser && \
+    echo 'devuser:devuser123' | chpasswd && \
+    echo 'devuser ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/devuser && \
+    chmod 0440 /etc/sudoers.d/devuser
+
+# Create .ssh directory for devuser
+RUN mkdir -p /home/devuser/.ssh && \
+    chmod 700 /home/devuser/.ssh && \
+    chown -R devuser:devuser /home/devuser/.ssh
+
+# Also set root password for direct root access if needed
+RUN echo 'root:root123' | chpasswd
+
+# Set working directory
+WORKDIR /home/devuser
+
+# Expose SSH port
 EXPOSE 22
 
-# Start the SSH service
-CMD ["/usr/sbin/sshd", "-D"]
+# Start SSH server in foreground for Docker logging
+CMD ["/usr/sbin/sshd", "-D", "-e"]
