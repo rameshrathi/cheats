@@ -2,6 +2,7 @@
 
 #include <string>
 #include <cstdint>
+#include <atomic>
 #include <stdexcept>
 #include <cstring>
 #include <algorithm>
@@ -31,9 +32,9 @@ public:
 private:
     // ── on-disk layout ──────────────────────────────────────
     struct ShmHeader {
-        uint32_t magic;          // sanity / version tag
-        uint32_t write_len;      // bytes currently valid in write_buf
-        uint32_t read_len;       // bytes currently valid in read_buf
+        std::atomic<uint32_t> magic;          // sanity / version tag
+        std::atomic<uint32_t> write_len;      // bytes currently valid in write_buf
+        std::atomic<uint32_t> read_len;       // bytes currently valid in read_buf
         uint8_t  _pad[4];        // keep buffers 8-byte aligned
     };
 
@@ -94,7 +95,7 @@ public:
         if (!layout_) throw std::runtime_error("SharedMemory not open");
         len = std::min(len, static_cast<std::size_t>(BUFFER_SIZE));
         std::memcpy(layout_->write_buf, data, len);
-        layout_->header.write_len = static_cast<uint32_t>(len);
+        layout_->header.write_len.store(static_cast<uint32_t>(len), std::memory_order_release);
         return len;
     }
 
@@ -103,7 +104,7 @@ public:
     std::size_t read(void* dst, std::size_t max_len)
     {
         if (!layout_) throw std::runtime_error("SharedMemory not open");
-        std::size_t available = layout_->header.read_len;
+        std::size_t available = layout_->header.read_len.load(std::memory_order_acquire);
         std::size_t n = std::min(available, std::min(max_len, static_cast<std::size_t>(BUFFER_SIZE)));
         std::memcpy(dst, layout_->read_buf, n);
         return n;
@@ -113,7 +114,7 @@ public:
     std::size_t read_write_buf(void* dst, std::size_t max_len)
     {
         if (!layout_) throw std::runtime_error("SharedMemory not open");
-        std::size_t n = std::min(static_cast<std::size_t>(layout_->header.write_len),
+        std::size_t n = std::min(static_cast<std::size_t>(layout_->header.write_len.load(std::memory_order_acquire)),
                                  std::min(max_len, static_cast<std::size_t>(BUFFER_SIZE)));
         std::memcpy(dst, layout_->write_buf, n);
         return n;
@@ -122,7 +123,7 @@ public:
     /** Mark the write buffer as consumed (reset length to 0). */
     void clear_write_buf()
     {
-        if (layout_) layout_->header.write_len = 0;
+        if (layout_) layout_->header.write_len.store(0, std::memory_order_release);
     }
 
     /** Write directly into the read buffer (so a peer can read it). */
@@ -131,7 +132,7 @@ public:
         if (!layout_) throw std::runtime_error("SharedMemory not open");
         len = std::min(len, static_cast<std::size_t>(BUFFER_SIZE));
         std::memcpy(layout_->read_buf, data, len);
-        layout_->header.read_len = static_cast<uint32_t>(len);
+        layout_->header.read_len.store(static_cast<uint32_t>(len), std::memory_order_release);
         return len;
     }
 
@@ -153,19 +154,19 @@ public:
     // Accessors
     int         id()     const { return id_;     }
     bool        owner()  const { return owner_;  }
-    std::size_t write_pending()   const { return layout_ ? layout_->header.write_len : 0; }
-    std::size_t read_available()  const { return layout_ ? layout_->header.read_len  : 0; }
+    std::size_t write_pending()   const { return layout_ ? layout_->header.write_len.load(std::memory_order_acquire) : 0; }
+    std::size_t read_available()  const { return layout_ ? layout_->header.read_len.load(std::memory_order_acquire)  : 0; }
 
     /** Mark the write-buffer as consumed (set length to 0). */
     void clear_write()
     {
-        if (layout_) layout_->header.write_len = 0;
+        if (layout_) layout_->header.write_len.store(0, std::memory_order_release);
     }
 
     /** Mark the read-buffer as consumed (set length to 0). */
     void clear_read()
     {
-        if (layout_) layout_->header.read_len = 0;
+        if (layout_) layout_->header.read_len.store(0, std::memory_order_release);
     }
 
     /** Unlink the POSIX shared memory object (owner only). */
@@ -223,9 +224,9 @@ private:
         if (owner_) {
             // Zero-initialise and stamp magic
             std::memset(layout_, 0, SHM_SIZE);
-            layout_->header.magic = MAGIC;
+            layout_->header.magic.store(MAGIC, std::memory_order_release);
         } else {
-            if (layout_->header.magic != MAGIC)
+            if (layout_->header.magic.load(std::memory_order_acquire) != MAGIC)
                 throw std::runtime_error("Bad magic in shared segment: " + name_);
         }
     }

@@ -68,11 +68,11 @@ void UdpServer::thread_shm_to_udp(std::atomic<bool>& running_flag) {
     std::cout << "[shm→udp] thread started (" << peers_.size() << " peers configured)\n";
 
     while (running_flag) {
-        std::size_t n = shm_.write_pending();
+        std::size_t n = shm_.read_available();
         if (n > 0) {
             n = shm_.read(buf, n);
             if (n > 0) {
-                shm_.clear_write();
+                shm_.clear_read();
                 
                 if (n >= 2) {
                     uint16_t target_id;
@@ -134,8 +134,8 @@ void UdpServer::thread_udp_to_shm(std::atomic<bool>& running_flag) {
         std::cout << "[udp→shm] received " << n << " bytes from "
                   << peer_str << ":" << ntohs(sender.sin_port) << "\n";
 
-        std::size_t written = shm_.write_to_read_buf(buf, static_cast<std::size_t>(n));
-        std::cout << "[udp→shm] wrote " << written << " bytes into SHM read-buf\n";
+        std::size_t written = shm_.write(buf, static_cast<std::size_t>(n));
+        std::cout << "[udp→shm] wrote " << written << " bytes into SHM write-buf\n";
     }
     std::cout << "[udp→shm] thread exiting\n";
 }
